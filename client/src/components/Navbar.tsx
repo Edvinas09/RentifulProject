@@ -20,6 +20,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
 import { SidebarTrigger } from "./ui/sidebar";
 
 const Navbar = () => {
+  // Fetch the authenticated user data
   const { data: authUser } = useGetAuthUserQuery();
   const router = useRouter();
   const pathname = usePathname();
@@ -93,6 +94,7 @@ const Navbar = () => {
             </Button>
           )}
         </div>
+        {/* Show only on non-dashboard pages */}
         {!isDashboardPage && (
           <p className="text-primary-200 hidden md:block">
             Discover your perfect rental apartment with our advanced search

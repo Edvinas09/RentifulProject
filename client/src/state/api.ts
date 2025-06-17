@@ -3,21 +3,39 @@ import { Manager, Tenant } from "@/types/prismaTypes";
 import { createApi, fetchBaseQuery } from "@reduxjs/toolkit/query/react";
 import { fetchAuthSession, getCurrentUser } from "aws-amplify/auth";
 
-export const api = createApi({
-  baseQuery: fetchBaseQuery({
+// Custom baseQuery to support async token fetching
+const customBaseQuery = async (args: any, api: any, extraOptions: any) => {
+  const rawBaseQuery = fetchBaseQuery({
     baseUrl: process.env.NEXT_PUBLIC_API_BASE_URL,
-    prepareHeaders: async (headers) => {
-      const session = await fetchAuthSession();
-      const { idToken } = session.tokens ?? {};
-      if (idToken) {
-        headers.set("Authorization", `Bearer ${idToken}`);
-      }
-      return headers;
-    },
-  }),
+  });
+
+  // Fetch token asynchronously
+  let headers = new Headers(extraOptions?.headers || {});
+  try {
+    const session = await fetchAuthSession();
+    const { idToken } = session.tokens ?? {};
+    if (idToken) {
+      headers.set("Authorization", `Bearer ${idToken}`);
+    }
+  } catch (e) {
+    // Token fetch failed, continue without auth header
+  }
+
+  // Pass headers to the request
+  if (typeof args === "string") {
+    args = { url: args };
+  }
+  args.headers = headers;
+
+  return rawBaseQuery(args, api, extraOptions);
+};
+
+export const api = createApi({
+  baseQuery: customBaseQuery, // Use custom baseQuery instead
   reducerPath: "api",
   tagTypes: ["Managers", "Tenants"],
   endpoints: (build) => ({
+    // ...rest of your endpoints remain the same
     getAuthUser: build.query<User, void>({
       queryFn: async (_, _queryApi, _extraoptions, fetchWithBQ) => {
         try {

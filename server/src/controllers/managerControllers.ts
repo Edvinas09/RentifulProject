@@ -8,6 +8,7 @@ export const getManager = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Extracting the cognitoId from the request parameters
     const { cognitoId } = req.params;
     const manager = await prisma.manager.findUnique({
       where: { cognitoId },
@@ -30,6 +31,7 @@ export const createManager = async (
   res: Response
 ): Promise<void> => {
   try {
+    // Extracting the manager details from the request body
     const { cognitoId, name, email, phoneNumber } = req.body;
 
     const manager = await prisma.manager.create({
