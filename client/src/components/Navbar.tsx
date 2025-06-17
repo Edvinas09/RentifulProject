@@ -101,7 +101,7 @@ const Navbar = () => {
           </p>
         )}
         <div className="flex items-center gap-5">
-          {authUser ? (
+          {authUser  ?(
             <>
               <div className="relative hidden md:block">
                 <MessageCircle className="w-6 h-6 cursor-pointer text-primary-200 hover:text-primary-400" />
