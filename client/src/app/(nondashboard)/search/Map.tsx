@@ -6,15 +6,14 @@ import "mapbox-gl/dist/mapbox-gl.css";
 import { useAppSelector } from "@/state/redux";
 import { useGetPropertiesQuery } from "@/state/api";
 import { filter } from "lodash";
+import { Property } from "@/types/prismaTypes";
 
 mapboxgl.accessToken = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN as string;
 
+//Setting up the Map component
 const Map = () => {
   const mapContainerRef = useRef(null);
   const filters = useAppSelector((state) => state.global.filters);
-  const isFiltersFullOpen = useAppSelector(
-    (state) => state.global.isFiltersFullOpen
-  );
 
   const {
     data: properties,
@@ -22,6 +21,7 @@ const Map = () => {
     isError,
   } = useGetPropertiesQuery(filters);
 
+  //Using MapBox to create a map
   useEffect(() => {
     if (isLoading || isError || !properties) return;
 
@@ -32,8 +32,23 @@ const Map = () => {
       zoom: 9,
     });
 
+    properties.forEach((property) => {
+      const marker = createPropertyMarker(property, map);
+      const markerElement = marker.getElement(); // Get the marker element
+      const path = markerElement.querySelector("path[fill='#3FB1CE']");
+      if (path) {
+        path.setAttribute("fill", "00000");
+      }
+    });
+
+    const resizeMap = () => setTimeout(() => map.resize(), 700); // we do this to ensure the map resizes correctly after the filters bar opens
+    resizeMap();
+
     return () => map.remove();
-  });
+  }, [isLoading, isError, properties, filters.coordinates]);
+
+  if(isLoading) return <>Loading...</>
+  if(isError || !properties) return <>Error loading properties</>;
 
   return (
     <div className="basis-5-12 grow relative rouunded-xl">
@@ -47,6 +62,33 @@ const Map = () => {
       ></div>
     </div>
   );
+};
+
+// Function to create markers for each property on the map
+const createPropertyMarker = (property: Property, map: mapboxgl.Map) => {
+  const marker = new mapboxgl.Marker()
+    .setLngLat([
+      property.location.coordinates.longitude,
+      property.location.coordinates.latitude,
+    ])
+    .setPopup(
+      new mapboxgl.Popup().setHTML(
+        `
+        <div class="marker-popup">
+          <div class="marker-popup-image"></div>
+          <div>
+            <a href="/search/${property.id}" target="_blank" class="marker-popup-title">${property.name}</a>
+            <p class="marker-popup-price">
+              $${property.pricePerMonth}
+              <span class="marker-popup-price-unit"> / month</span>
+            </p>
+          </div>
+        </div>
+        `
+      )
+    )
+    .addTo(map);
+  return marker;
 };
 
 export default Map;

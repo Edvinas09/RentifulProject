@@ -1,11 +1,13 @@
 import { Request, Response } from "express";
-import { Location, Prisma, PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { wktToGeoJSON } from "@terraformer/wkt";
-import { Upload } from "@aws-sdk/lib-storage";
 import { S3Client } from "@aws-sdk/client-s3";
+import { Location } from "@prisma/client";
+import { Upload } from "@aws-sdk/lib-storage";
 import axios from "axios";
 
 const prisma = new PrismaClient();
+
 const s3Client = new S3Client({
   region: process.env.AWS_REGION,
 });
@@ -25,15 +27,14 @@ export const getProperties = async (
       squareFeetMin,
       squareFeetMax,
       amenities,
+      availableFrom,
       latitude,
       longitude,
-      availableFrom,
     } = req.query;
 
     let whereConditions: Prisma.Sql[] = [];
 
     if (favoriteIds) {
-      //Converting favoriteIds to an array of numbers
       const favoriteIdsArray = (favoriteIds as string).split(",").map(Number);
       whereConditions.push(
         Prisma.sql`p.id IN (${Prisma.join(favoriteIdsArray)})`
@@ -48,7 +49,7 @@ export const getProperties = async (
 
     if (priceMax) {
       whereConditions.push(
-        Prisma.sql`p."pricePerMonth" >= ${Number(priceMax)}`
+        Prisma.sql`p."pricePerMonth" <= ${Number(priceMax)}`
       );
     }
 
@@ -68,33 +69,33 @@ export const getProperties = async (
 
     if (squareFeetMax) {
       whereConditions.push(
-        Prisma.sql`p."squareFeet" >= ${Number(squareFeetMax)}`
+        Prisma.sql`p."squareFeet" <= ${Number(squareFeetMax)}`
       );
     }
 
     if (propertyType && propertyType !== "any") {
-      //Checking in enum PropertyType whether the propertyType is valid
       whereConditions.push(
-        Prisma.sql`p."propertyType" >= ${propertyType}::"PropertyType"`
+        Prisma.sql`p."propertyType" = ${propertyType}::"PropertyType"`
       );
     }
 
     if (amenities && amenities !== "any") {
       const amenitiesArray = (amenities as string).split(",");
-      whereConditions.push(
-        //Checking if the amenities array contains the amenities
-        Prisma.sql`p."amenities" @> ${amenitiesArray}`
-      );
+      whereConditions.push(Prisma.sql`p.amenities @> ${amenitiesArray}`);
     }
 
     if (availableFrom && availableFrom !== "any") {
       const availableFromDate =
         typeof availableFrom === "string" ? availableFrom : null;
-      if (availableFromDate && availableFrom && availableFrom !== "any") {
+      if (availableFromDate) {
         const date = new Date(availableFromDate);
         if (!isNaN(date.getTime())) {
           whereConditions.push(
-            Prisma.sql`Exists (SELECT 1 FROM "Lease" l WHERE l."propertyId" = p.id AND l."startDate" <= ${date.toISOString()} AND l."endDate" >= ${date.toISOString()})`
+            Prisma.sql`EXISTS (
+              SELECT 1 FROM "Lease" l 
+              WHERE l."propertyId" = p.id 
+              AND l."startDate" <= ${date.toISOString()}
+            )`
           );
         }
       }
@@ -103,35 +104,40 @@ export const getProperties = async (
     if (latitude && longitude) {
       const lat = parseFloat(latitude as string);
       const lng = parseFloat(longitude as string);
-      const radius = 1000; // 1000 km radius
-      const degrees = radius / 111; // Approximate conversion from km to degrees
+      const radiusInKilometers = 1000;
+      const degrees = radiusInKilometers / 111; // Converts kilometers to degrees
 
       whereConditions.push(
-        Prisma.sql`ST_DWithin( l.coordinates::geometry, ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326), ${degrees})`
+        Prisma.sql`ST_DWithin(
+          l.coordinates::geometry,
+          ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326),
+          ${degrees}
+        )`
       );
     }
 
     const completeQuery = Prisma.sql`
-SELECT p.*,
+      SELECT 
+        p.*,
         json_build_object(
-            'id', l.id,
-            'address', l.address,
-            'city', l.city,
-            'state', l.state,
-            'country', l.country,
-            'postalCode', l."postalCode",
-            'coordinates', json_build_object(
-                'latitude', ST_Y(l.coordinates::geometry),
-                'longitude', ST_X(l.coordinates::geometry)
-            )
+          'id', l.id,
+          'address', l.address,
+          'city', l.city,
+          'state', l.state,
+          'country', l.country,
+          'postalCode', l."postalCode",
+          'coordinates', json_build_object(
+            'longitude', ST_X(l."coordinates"::geometry),
+            'latitude', ST_Y(l."coordinates"::geometry)
+          )
         ) as location
-        FROM "Property" p
-        JOIN "Location" l ON p."locationId" = l.id
-        ${
-          whereConditions.length > 0
-            ? Prisma.sql`WHERE ${Prisma.join(whereConditions, " AND ")}`
-            : Prisma.empty
-        }
+      FROM "Property" p
+      JOIN "Location" l ON p."locationId" = l.id
+      ${
+        whereConditions.length > 0
+          ? Prisma.sql`WHERE ${Prisma.join(whereConditions, " AND ")}`
+          : Prisma.empty
+      }
     `;
 
     const properties = await prisma.$queryRaw(completeQuery);
@@ -140,7 +146,7 @@ SELECT p.*,
   } catch (error: any) {
     res
       .status(500)
-      .json({ message: `Error retrieving manager: ${error.message}` });
+      .json({ message: `Error retrieving properties: ${error.message}` });
   }
 };
 
@@ -159,27 +165,28 @@ export const getProperty = async (
 
     if (property) {
       const coordinates: { coordinates: string }[] =
-        await prisma.$queryRaw`SELECT ST_asText(coordinates) as coordinates from "Location" where id = ${property.locationId}`;
-      const geoJson: any = wktToGeoJSON(coordinates[0]?.coordinates || "");
-      const longitude = geoJson.coordinates[0];
-      const latitude = geoJson.coordinates[1];
+        await prisma.$queryRaw`SELECT ST_asText(coordinates) as coordinates from "Location" where id = ${property.location.id}`;
+
+      const geoJSON: any = wktToGeoJSON(coordinates[0]?.coordinates || "");
+      const longitude = geoJSON.coordinates[0];
+      const latitude = geoJSON.coordinates[1];
 
       const propertyWithCoordinates = {
         ...property,
         location: {
           ...property.location,
           coordinates: {
-            latitude,
             longitude,
+            latitude,
           },
         },
       };
       res.json(propertyWithCoordinates);
     }
-  } catch (error: any) {
+  } catch (err: any) {
     res
       .status(500)
-      .json({ message: `Error retrieving property: ${error.message}` });
+      .json({ message: `Error retrieving property: ${err.message}` });
   }
 };
 
@@ -196,7 +203,7 @@ export const createProperty = async (
       country,
       postalCode,
       managerCognitoId,
-      ...getPropertyData
+      ...propertyData
     } = req.body;
 
     const photoUrls = await Promise.all(
@@ -216,28 +223,27 @@ export const createProperty = async (
         return uploadResult.Location;
       })
     );
-    //nominatim url for geocoding
-    const geoCodingUrl = `   https://nominatim.openstreetmap.org/search?${new URLSearchParams(
+
+    const geocodingUrl = `https://nominatim.openstreetmap.org/search?${new URLSearchParams(
       {
         street: address,
         city,
         country,
-        postalCode: postalCode,
+        postalcode: postalCode,
         format: "json",
         limit: "1",
       }
     ).toString()}`;
-    const geoCodingResponse = await axios.get(geoCodingUrl, {
-      //Need these headers to avoid CORS issues
+    const geocodingResponse = await axios.get(geocodingUrl, {
       headers: {
-        "User-Agent": "RealEstateProject (just4life45@gmail.com)",
+        "User-Agent": "RealEstateApp (justsomedummyemail@gmail.com",
       },
     });
     const [longitude, latitude] =
-      geoCodingResponse.data[0]?.lon && geoCodingResponse.data[0]?.lat
+      geocodingResponse.data[0]?.lon && geocodingResponse.data[0]?.lat
         ? [
-            parseFloat(geoCodingResponse.data[0]?.lon),
-            parseFloat(geoCodingResponse.data[0]?.lat),
+            parseFloat(geocodingResponse.data[0]?.lon),
+            parseFloat(geocodingResponse.data[0]?.lat),
           ]
         : [0, 0];
 
@@ -251,38 +257,37 @@ export const createProperty = async (
     // create property
     const newProperty = await prisma.property.create({
       data: {
-        ...getPropertyData,
+        ...propertyData,
         photoUrls,
         locationId: location.id,
         managerCognitoId,
         amenities:
-          typeof getPropertyData.amenities === "string"
-            ? getPropertyData.amenities.split(",")
+          typeof propertyData.amenities === "string"
+            ? propertyData.amenities.split(",")
             : [],
         highlights:
-          typeof getPropertyData.highlights === "string"
-            ? getPropertyData.highlights.split(",")
+          typeof propertyData.highlights === "string"
+            ? propertyData.highlights.split(",")
             : [],
-        isPetsAllowed: getPropertyData.isPetsAllowed === "true",
-        isParkingIncluded: getPropertyData.isParkingIncluded === "true",
-        pricePerMonth: parseFloat(getPropertyData.pricePerMonth),
-        securityDeposit: parseFloat(getPropertyData.securityDeposit),
-        applicationFee: parseFloat(getPropertyData.applicationFee),
-        beds: parseInt(getPropertyData.beds),
-        baths: parseFloat(getPropertyData.baths),
-        squareFeet: parseInt(getPropertyData.squareFeet),
+        isPetsAllowed: propertyData.isPetsAllowed === "true",
+        isParkingIncluded: propertyData.isParkingIncluded === "true",
+        pricePerMonth: parseFloat(propertyData.pricePerMonth),
+        securityDeposit: parseFloat(propertyData.securityDeposit),
+        applicationFee: parseFloat(propertyData.applicationFee),
+        beds: parseInt(propertyData.beds),
+        baths: parseFloat(propertyData.baths),
+        squareFeet: parseInt(propertyData.squareFeet),
       },
       include: {
         location: true,
         manager: true,
       },
-
     });
 
     res.status(201).json(newProperty);
-  } catch (error: any) {
+  } catch (err: any) {
     res
       .status(500)
-      .json({ message: `Error creating property: ${error.message}` });
+      .json({ message: `Error creating property: ${err.message}` });
   }
 };
