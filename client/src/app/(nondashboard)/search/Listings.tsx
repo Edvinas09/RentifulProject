@@ -64,31 +64,33 @@ const Listings = () => {
       <div className="flex">
         <div className="p-4 w-full">
           {properties?.map((property) =>
-            viewMode === "grid" ? <Card
-            key ={property.id}
-            property={property}
-            isFavorite={
-                tenant?.favorites?.some(
+            viewMode === "grid" ? (
+              <Card
+                key={property.id}
+                property={property}
+                isFavorite={
+                  tenant?.favorites?.some(
                     (fav: Property) => fav.id === property.id
-                ) || false
-            }
-            onFavoriteToggle={() => handleFavoriteToggle(property.id)}
-            showFavoriteButton={!!authUser}
-            propertyLink={`/search/${property.id}`}
-            
-            /> : <CardCompact
-            key ={property.id}
-            property={property}
-            isFavorite={
-                tenant?.favorites?.some(
+                  ) || false
+                }
+                onFavoriteToggle={() => handleFavoriteToggle(property.id)}
+                showFavoriteButton={!!authUser}
+                propertyLink={`/search/${property.id}`}
+              />
+            ) : (
+              <CardCompact
+                key={property.id}
+                property={property}
+                isFavorite={
+                  tenant?.favorites?.some(
                     (fav: Property) => fav.id === property.id
-                ) || false
-            }
-            onFavoriteToggle={() => handleFavoriteToggle(property.id)}
-            showFavoriteButton={!!authUser}
-            propertyLink={`/search/${property.id}`}
-            
-            />
+                  ) || false
+                }
+                onFavoriteToggle={() => handleFavoriteToggle(property.id)}
+                showFavoriteButton={!!authUser}
+                propertyLink={`/search/${property.id}`}
+              />
+            )
           )}
         </div>
       </div>

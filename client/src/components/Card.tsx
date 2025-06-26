@@ -11,7 +11,7 @@ const Card = ({
   propertyLink,
 }: CardProps) => {
   const [imgSrc, setImgSrc] = useState(
-    property.photoUrls?.[0] || "placeholder.jpg"
+    property.photoUrls?.[0] || "/placeholder.jpg"
   );
 
   return (
