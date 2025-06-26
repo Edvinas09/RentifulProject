@@ -61,7 +61,7 @@ export const listApplications = async (
                     address: app.property.location.address,
                 },
                 manager: app.property.manager,
-                lesase: lease ? {...lease, nextPaymentDate: calculateNextPaymentDate(lease.startDate)} : null,
+                lease: lease ? {...lease, nextPaymentDate: calculateNextPaymentDate(lease.startDate)} : null,
             }
         }
     ));
