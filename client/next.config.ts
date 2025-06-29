@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { hostname } from "os";
 
 const nextConfig: NextConfig = {
   /* config options here */
@@ -10,6 +11,12 @@ const nextConfig: NextConfig = {
             port: "",
             pathname: "/**",
         },
+        {
+        protocol: "https",
+        hostname: "*.amazonaws.com",
+        port: "",
+        pathname: "/**",
+        }
     ],
   }
 };
