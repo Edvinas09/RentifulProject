@@ -8,8 +8,6 @@ import { Button } from "@/components/ui/button";
 import { useDispatch } from "react-redux";
 import { useRouter } from "next/navigation";
 import { setFilters } from "@/state";
-import { url } from "inspector";
-import { set } from "lodash";
 
 const HeroSection = () => {
   const dispatch = useDispatch();
