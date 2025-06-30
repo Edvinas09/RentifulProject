@@ -108,13 +108,13 @@ NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID=your-cognito-client-id
 
 ---
 
-## 🌐 Cloud & DevOps
+## 🌐 Cloud
 
 - **AWS EC2** for backend hosting
 - **AWS RDS** for managed PostgreSQL
 - **AWS S3** for file storage
 - **AWS Cognito** for authentication
 - **AWS API Gateway** for secure routing
-- **AWS Amplify** for frontend hosting and CI/CD
+- **AWS Amplify** for frontend hosting
 
 ---
