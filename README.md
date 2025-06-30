@@ -106,8 +106,6 @@ NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID=your-cognito-user-pool-id
 NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID=your-cognito-client-id
 ```
 
-After copying, be sure to provide your actual values.
-
 ---
 
 ## 🌐 Cloud & DevOps
