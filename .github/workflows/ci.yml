@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # Client install, lint, and build
+      - name: Install client dependencies
+        working-directory: ./client
+        run: npm install
+
+      - name: Lint client
+        working-directory: ./client
+        run: npm run lint || true
+
+      - name: Build client
+        working-directory: ./client
+        env:
+          NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+          NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: dummy
+          NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID: dummy
+          NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID: dummy
+        run: npm run build
+
+      # Server install, lint, and build
+      - name: Install server dependencies
+        working-directory: ./server
+        run: npm install
+
+      - name: Lint server
+        working-directory: ./server
+        run: npm run lint || true
+
+      - name: Build server
+        working-directory: ./server
+        env:
+          PORT: 3001
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/realestate?schema=public"
+          S3_BUCKET_NAME: dummy
+        run: npm run build
