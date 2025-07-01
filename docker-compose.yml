@@ -41,6 +41,7 @@ services:
   client:
     build: ./client
     environment:
+      NODE_ENV: development
       NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
       NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: pk.eyJ1IjoiZGVudmVyNDUiLCJhIjoiY21jY2JmMmo1MDRyeDJqcXpxemo0MnNsdSJ9.4h0mYTzWtoIIUgG4d9a97A
       NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID: eu-north-1_vj4Y6nt7u
@@ -49,6 +50,7 @@ services:
       - "3000:3000"
     depends_on:
       - server
+    command: npm run dev
     volumes:
       - ./client:/app
       - /app/node_modules
