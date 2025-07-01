@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.4
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: Barsukas10!
+      POSTGRES_DB: realestate
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  server:
+    build: ./server
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://postgres:Barsukas10!@postgres:5432/realestate?schema=public
+      S3_BUCKET_NAME: ${S3_BUCKET_NAME:-demo-bucket}
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "npx prisma migrate deploy && 
+             npx prisma generate &&
+             (npx prisma db seed || echo 'Seeding skipped, please configure seed script') &&
+             npm run start"
+    volumes:
+      - ./server:/app
+      - /app/node_modules
+
+  client:
+    build: ./client
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: http://localhost:3001
+      NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN: pk.eyJ1IjoiZGVudmVyNDUiLCJhIjoiY21jY2JmMmo1MDRyeDJqcXpxemo0MnNsdSJ9.4h0mYTzWtoIIUgG4d9a97A
+      NEXT_PUBLIC_AWS_COGNITO_USER_POOL_ID: eu-north-1_vj4Y6nt7u
+      NEXT_PUBLIC_AWS_COGNITO_USER_POOL_CLIENT_ID: 3anjaekpsq3tmi9qi6a4ah71dp
+    ports:
+      - "3000:3000"
+    depends_on:
+      - server
+    volumes:
+      - ./client:/app
+      - /app/node_modules
+
+volumes:
+  postgres_data:

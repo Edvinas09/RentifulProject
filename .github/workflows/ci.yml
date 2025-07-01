@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build-and-lint:
@@ -52,4 +52,15 @@ jobs:
           PORT: 3001
           DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/realestate?schema=public"
           S3_BUCKET_NAME: dummy
-        run: npm run build
+        run:
+          npm run build
+
+          # Build Docker image for client
+      - name: Build client Docker image
+        working-directory: ./client
+        run: docker build -t rentiful-client .
+
+      # Build Docker image for server
+      - name: Build server Docker image
+        working-directory: ./server
+        run: docker build -t rentiful-server .
